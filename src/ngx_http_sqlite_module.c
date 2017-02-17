@@ -34,6 +34,8 @@ ngx_int_t ngx_http_sqlite_content_handler(ngx_http_request_t *r);
 ngx_int_t ngx_http_sqlite_content_query_handler(ngx_http_request_t *r);
 int ngx_http_sqlite_sql_result(void *arg, int n_column, char **column_value, char **column_name);
 
+void ngx_http_sqlite_echo(ngx_http_request_t *r, char *data, size_t len);
+
 static ngx_command_t ngx_http_sqlite_commands[] = {
 
     {ngx_string("sqlite_query"),
@@ -357,9 +359,7 @@ ngx_int_t
 ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
 {
     ngx_http_sqlite_rputs_chain_list_t *chain = NULL;
-    ngx_buf_t *b;
-    u_char *u_str;
-    ngx_str_t ns;
+
     ngx_int_t rc;
 
     ngx_http_sqlite_loc_conf_t *slcf = ngx_http_get_module_loc_conf(r, ngx_http_sqlite_module);
@@ -406,37 +406,14 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
         while(sqlite3_step(stmt) == SQLITE_ROW) {
             for (i = 0; i < num_of_columns; i++) {
                 ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%d %s", num_of_columns, sqlite3_column_text(stmt, i));
-                ns.len = ngx_strlen(sqlite3_column_text(stmt, i));
-                ns.data = (u_char *) sqlite3_column_text(stmt, i);
 
-                if (ctx->rputs_chain == NULL){
-                    chain = ngx_pcalloc(r->pool, sizeof(ngx_http_sqlite_rputs_chain_list_t));
-                    chain->out = ngx_alloc_chain_link(r->pool);
-                    chain->last = &chain->out;
-                }else {
-                    chain = ctx->rputs_chain;
-                    (*chain->last)->next = ngx_alloc_chain_link(r->pool);
-                    chain->last = &(*chain->last)->next;
-                }
-
-                b = ngx_calloc_buf(r->pool);
-                (*chain->last)->buf = b;
-                (*chain->last)->next = NULL;
-
-                u_str = ngx_pstrdup(r->pool, &ns);
-                //u_str[ns.len] = '\0';
-                (*chain->last)->buf->pos = u_str;
-                (*chain->last)->buf->last = u_str + ns.len;
-                (*chain->last)->buf->memory = 1;
-                ctx->rputs_chain = chain;
-
-                if (r->headers_out.content_length_n == -1){
-                    r->headers_out.content_length_n += ns.len + 1;
-                }else {
-                    r->headers_out.content_length_n += ns.len;
+                ngx_http_sqlite_echo(r, (char *) sqlite3_column_text(stmt, i), ngx_strlen(sqlite3_column_text(stmt, i)));
+                
+                if (i < num_of_columns-1) {
+                    ngx_http_sqlite_echo(r, ",", 1);
                 }
             }
-
+            ngx_http_sqlite_echo(r, "\n", 1);
             //result_code = sqlite3_step(stmt);
         }
 
@@ -475,6 +452,9 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
                 r->headers_out.content_length_n += ns.len;
             }
         }*/
+
+        ctx = ngx_http_get_module_ctx(r, ngx_http_sqlite_module);
+        chain = ctx->rputs_chain;
 
         if (!r->headers_out.status){
             r->headers_out.status = NGX_HTTP_OK;
@@ -522,7 +502,48 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
 
 }
 
+void 
+ngx_http_sqlite_echo(ngx_http_request_t *r, char *data, size_t len)
+{
+    ngx_buf_t *b;
+    ngx_http_sqlite_rputs_chain_list_t *chain;
+    ngx_http_sqlite_ctx_t *ctx;
 
+    u_char *u_str;
+    ngx_str_t ns;
+
+    ctx = ngx_http_get_module_ctx(r, ngx_http_sqlite_module);
+
+    ns.len = len;
+    ns.data = (u_char *) data;
+
+    if (ctx->rputs_chain == NULL){
+        chain = ngx_pcalloc(r->pool, sizeof(ngx_http_sqlite_rputs_chain_list_t));
+        chain->out = ngx_alloc_chain_link(r->pool);
+        chain->last = &chain->out;
+    }else {
+        chain = ctx->rputs_chain;
+        (*chain->last)->next = ngx_alloc_chain_link(r->pool);
+        chain->last = &(*chain->last)->next;
+    }
+
+    b = ngx_calloc_buf(r->pool);
+    (*chain->last)->buf = b;
+    (*chain->last)->next = NULL;
+
+    u_str = ngx_pstrdup(r->pool, &ns);
+    //u_str[ns.len] = '\0';
+    (*chain->last)->buf->pos = u_str;
+    (*chain->last)->buf->last = u_str + ns.len;
+    (*chain->last)->buf->memory = 1;
+    ctx->rputs_chain = chain;
+
+    if (r->headers_out.content_length_n == -1){
+        r->headers_out.content_length_n += ns.len + 1;
+    }else {
+        r->headers_out.content_length_n += ns.len;
+    }
+}
 
 
 
