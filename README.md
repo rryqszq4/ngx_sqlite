@@ -43,6 +43,8 @@ http {
 
     keepalive_timeout  65;
 
+    sqlite_database    test.db;
+
     server {
         listen       80;
         server_name  localhost;
@@ -59,7 +61,7 @@ Copyright and License
 ---------------------
 BSD 2-Clause License
 
-Copyright (c) 2017, rryqszq4
+Copyright (c) 2017, rryqszq4  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

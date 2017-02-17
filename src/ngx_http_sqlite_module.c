@@ -28,8 +28,11 @@ static char *ngx_http_sqlite_merge_loc_conf(ngx_conf_t *cf, void *parent, void *
 static ngx_int_t ngx_http_sqlite_init_worker(ngx_cycle_t *cycle);
 static void ngx_http_sqlite_exit_worker(ngx_cycle_t *cycle);
 
+// directive
+char *ngx_http_sqlite_database(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 char *ngx_http_sqlite_content_phase(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
+// handler
 ngx_int_t ngx_http_sqlite_content_handler(ngx_http_request_t *r);
 ngx_int_t ngx_http_sqlite_content_query_handler(ngx_http_request_t *r);
 int ngx_http_sqlite_sql_result(void *arg, int n_column, char **column_value, char **column_name);
@@ -37,6 +40,14 @@ int ngx_http_sqlite_sql_result(void *arg, int n_column, char **column_value, cha
 void ngx_http_sqlite_echo(ngx_http_request_t *r, char *data, size_t len);
 
 static ngx_command_t ngx_http_sqlite_commands[] = {
+
+    {ngx_string("sqlite_database"),
+     NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+     ngx_http_sqlite_database,
+     NGX_HTTP_MAIN_CONF_OFFSET,
+     0,
+     NULL
+    },
 
     {ngx_string("sqlite_query"),
      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
@@ -141,6 +152,8 @@ ngx_http_sqlite_create_main_conf(ngx_conf_t *cf)
         return NULL;
     }
 
+    smcf->sqlite_database.len = 0;
+
     return smcf;
 }
 
@@ -186,7 +199,11 @@ ngx_http_sqlite_init_worker(ngx_cycle_t *cycle)
 
     smcf = ngx_http_cycle_get_module_main_conf(cycle, ngx_http_sqlite_module);
 
-    sqlite3_open("/root/source/lnmp1.1-full/nginx-1.6.0/test.db", &sqlite_db);
+    if (smcf->sqlite_database.len != 0){
+        sqlite3_open((char *) smcf->sqlite_database.data, &sqlite_db);
+    }
+
+    //sqlite3_open("/root/source/lnmp1.1-full/nginx-1.6.0/test.db", &sqlite_db);
 
     return NGX_OK;
 }
@@ -197,6 +214,23 @@ ngx_http_sqlite_exit_worker(ngx_cycle_t *cycle)
     sqlite3_close(sqlite_db);
 }
 
+char *
+ngx_http_sqlite_database(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_sqlite_main_conf_t *smcf = conf;
+    ngx_str_t *value;
+
+    if (smcf->sqlite_database.len != 0){
+        return "is duplicated";
+    }
+
+    value = cf->args->elts;
+
+    smcf->sqlite_database.len = value[1].len;
+    smcf->sqlite_database.data = value[1].data;
+
+    return NGX_CONF_OK;
+}
 
 char *
 ngx_http_sqlite_content_phase(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
@@ -397,6 +431,7 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
     );
 
     if (SQLITE_OK != result_code) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "sqlite.err: %s", sqlite3_errmsg(sqlite_db));
         sqlite3_finalize(stmt);
         return NGX_ERROR;
     } else {

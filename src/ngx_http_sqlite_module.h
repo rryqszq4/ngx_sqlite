@@ -26,6 +26,8 @@ typedef struct {
 
 typedef struct {
     unsigned enabled_content_handler:1;
+
+    ngx_str_t sqlite_database;
 } ngx_http_sqlite_main_conf_t;
 
 typedef struct {
