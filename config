@@ -6,4 +6,4 @@ NGX_ADDON_DEPS="$NGX_ADDON_DEPS $ngx_addon_dir/src/ngx_http_sqlite_module.h"
 
 CORE_INCS="$CORE_INCS /usr/local/include"
 
-CORE_LIBS="$CORE_LIBS /usr/local/lib -lsqlite3"
+CORE_LIBS="$CORE_LIBS -L/usr/local/lib -lsqlite3"

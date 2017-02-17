@@ -21,11 +21,15 @@ extern ngx_module_t ngx_http_sqlite_module;
 ngx_http_request_t *ngx_sqlite_request;
 
 typedef struct {
+    char *sql;
+} ngx_http_sqlite_query_t;
+
+typedef struct {
     unsigned enabled_content_handler:1;
 } ngx_http_sqlite_main_conf_t;
 
 typedef struct {
-    ngx_str_t *sqlite_query;
+    ngx_http_sqlite_query_t *sqlite_query;
 
     ngx_int_t (*content_handler)(ngx_http_request_t *r);
 } ngx_http_sqlite_loc_conf_t;
