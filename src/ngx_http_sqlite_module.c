@@ -431,9 +431,13 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
     );
 
     if (SQLITE_OK != result_code) {
+        ngx_http_sqlite_echo(r, (char *) sqlite3_errmsg(sqlite_db), ngx_strlen(sqlite3_errmsg(sqlite_db)));
+        
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "sqlite.err: %s", sqlite3_errmsg(sqlite_db));
+        
         sqlite3_finalize(stmt);
-        return NGX_ERROR;
+        
+        //return NGX_ERROR;
     } else {
         //result_code = sqlite3_step(stmt);
         num_of_columns = sqlite3_column_count(stmt);
@@ -488,35 +492,37 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
             }
         }*/
 
-        ctx = ngx_http_get_module_ctx(r, ngx_http_sqlite_module);
-        chain = ctx->rputs_chain;
+        //
+    }
 
-        if (!r->headers_out.status){
-            r->headers_out.status = NGX_HTTP_OK;
-        }
+    ctx = ngx_http_get_module_ctx(r, ngx_http_sqlite_module);
+    chain = ctx->rputs_chain;
 
-        if (r->method == NGX_HTTP_HEAD){
-            rc = ngx_http_send_header(r);
-            if (rc != NGX_OK){
-                return rc;
-            }
-        }
+    if (!r->headers_out.status){
+        r->headers_out.status = NGX_HTTP_OK;
+    }
 
-        if (chain != NULL){
-            (*chain->last)->buf->last_buf = 1;
-        }
-
+    if (r->method == NGX_HTTP_HEAD){
         rc = ngx_http_send_header(r);
         if (rc != NGX_OK){
             return rc;
         }
-
-        ngx_http_output_filter(r, chain->out);
-
-        ngx_http_set_ctx(r, NULL, ngx_http_sqlite_module);
-        
-        return NGX_OK;
     }
+
+    if (chain != NULL){
+        (*chain->last)->buf->last_buf = 1;
+    }
+
+    rc = ngx_http_send_header(r);
+    if (rc != NGX_OK){
+        return rc;
+    }
+
+    ngx_http_output_filter(r, chain->out);
+
+    ngx_http_set_ctx(r, NULL, ngx_http_sqlite_module);
+    
+    return NGX_OK;
 
     /*sqlite3_exec(
         sqlite_db,
