@@ -499,7 +499,7 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
             ngx_http_sqlite_echo(r, "\n", 1);
             //result_code = sqlite3_step(stmt);
         }
-        // ngx_http_sqlite_echo(r, "\n", 1);
+        ngx_http_sqlite_echo(r, "\n", 1);
 
         //ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%d",r->headers_out.content_length_n);
 
