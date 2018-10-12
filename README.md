@@ -50,9 +50,11 @@ http {
         server_name  localhost;
     
         location /sqlite {
-            sqlite_query "select * from test;";
+            sqlite_query "select * from test where test0== ? and test1 == ?;";
         }
-        
+        location = /test {
+            return 301 /sqlite?args=test&args=test;
+        }
     }
 }
 ```

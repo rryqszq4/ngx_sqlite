@@ -439,9 +439,53 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
         
         //return NGX_ERROR;
     } else {
+        char* buf;
+        buf = ngx_pcalloc(r->pool, r->args.len + 1);
+        if (buf != NULL) {
+            ngx_memcpy(buf, r->args.data, r->args.len);
+            char* query_qrgs = "args=";
+            int state = 0;
+            int para_index = 1;
+            char* str_start = 0;
+            for (i = 0; i < r->args.len; i++) {
+                if(state < 5) {
+                    if(buf[i] == query_qrgs[state]) {
+                        state += 1;
+                        if (state == 5) {
+                            str_start = &(buf[i + 1]);
+                        }
+                    } else {
+                        state = 0;
+                    }
+                } else {
+                    if(buf[i]=='&') {
+                        buf[i] = 0;
+                        sqlite3_bind_text(
+                            stmt,
+                            para_index,
+                            str_start,
+                            &buf[i] - str_start,
+                            SQLITE_TRANSIENT
+                        );
+                        state = 0;
+                        para_index += 1;
+                    }
+                }
+            }
+            if(state == 5) {
+                int ec = sqlite3_bind_text(
+                    stmt,
+                    para_index,
+                    str_start,
+                    &buf[r->args.len] - str_start,
+                    SQLITE_TRANSIENT
+                );
+            }
+            ngx_pfree(r->pool, buf);
+        }
         //result_code = sqlite3_step(stmt);
         num_of_columns = sqlite3_column_count(stmt);
-
+        
         while(sqlite3_step(stmt) == SQLITE_ROW) {
             for (i = 0; i < num_of_columns; i++) {
                 //ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%d %s", num_of_columns, sqlite3_column_text(stmt, i));
@@ -455,6 +499,7 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
             ngx_http_sqlite_echo(r, "\n", 1);
             //result_code = sqlite3_step(stmt);
         }
+        ngx_http_sqlite_echo(r, "\n", 1);
 
         //ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%d",r->headers_out.content_length_n);
 
@@ -518,7 +563,9 @@ ngx_http_sqlite_content_query_handler(ngx_http_request_t *r)
         return rc;
     }
 
-    ngx_http_output_filter(r, chain->out);
+    if (chain != NULL){
+        ngx_http_output_filter(r, chain->out);
+    }
 
     ngx_http_set_ctx(r, NULL, ngx_http_sqlite_module);
     
