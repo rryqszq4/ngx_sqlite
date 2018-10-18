@@ -24,9 +24,15 @@ typedef struct {
     char *sql;
 } ngx_http_sqlite_query_t;
 
+typedef struct ngx_http_sqlite_pragma_list{
+    struct ngx_http_sqlite_pragma_list* next;
+    ngx_str_t pragma;
+} ngx_http_sqlite_pragma_list;
+
 typedef struct {
     unsigned enabled_content_handler:1;
-
+    ngx_http_sqlite_pragma_list* pragma_list;
+    ngx_http_sqlite_pragma_list* pragma_tail;
     ngx_str_t sqlite_database;
 } ngx_http_sqlite_main_conf_t;
 

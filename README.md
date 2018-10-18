@@ -44,7 +44,7 @@ http {
     keepalive_timeout  65;
 
     sqlite_database    test.db;
-
+    sqlite_pragma "PRAGMA foreign_keys = ON;";
     server {
         listen       80;
         server_name  localhost;
