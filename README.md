@@ -50,20 +50,28 @@ http {
         server_name  localhost;
     
         location /sqlite {
-            sqlite_query "select * from test where test0== ? and test1 == ?;";
+            sqlite_query "
+                insert into test values (?, ?);
+                select * from test where test0== ? and test1 == ?;
+            ";
         }
         location /sqlite_json {
             sqlite_query_json "select * from test where test0== ? and test1 == ?;";
         }
         location = /test {
-            return 301 /sqlite?args=test&args=test;
+            return 301 /sqlite?args=test&args=test&args=test&args=test;
         }
         location = /test_json {
             return 301 /sqlite_json?args=test&args=test;
         }
     }
 }
-```
+````
+
+TODO
+---
+* transaction support
+* named parameter and better query string interface
 
 Copyright and License
 ---------------------
