@@ -613,6 +613,8 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
         }
     }
     ngx_pfree(r->pool, buf);
+    ngx_pfree(r->pool, keys);
+    ngx_pfree(r->pool, values);
     ctx = ngx_http_get_module_ctx(r, ngx_http_sqlite_module);
     chain = ctx->rputs_chain;
 
