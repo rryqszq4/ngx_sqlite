@@ -51,18 +51,20 @@ http {
     
         location /sqlite {
             sqlite_query "
-                insert into test values (?, ?);
-                select * from test where test0== ? and test1 == ?;
+                begin;
+                    insert into test values (@test0, @test1);
+                    select * from test where test0 == @test0 and test1 == @test1;
+                end;
             ";
         }
         location /sqlite_json {
-            sqlite_query_json "select * from test where test0== ? and test1 == ?;";
+            sqlite_query_json "select * from test where test0== @test0 and test1 == @test1;";
         }
         location = /test {
-            return 301 /sqlite?args=test&args=test&args=test&args=test;
+            return 301 /sqlite?test0=test&test1=test;
         }
         location = /test_json {
-            return 301 /sqlite_json?args=test&args=test;
+            return 301 /sqlite_json?test0=test&test1=test;
         }
     }
 }
@@ -70,8 +72,7 @@ http {
 
 TODO
 ---
-* transaction support
-* named parameter and better query string interface
+* considering another interface for anonymous parameters.
 
 Copyright and License
 ---------------------

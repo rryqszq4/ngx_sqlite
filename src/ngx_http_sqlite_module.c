@@ -12,6 +12,8 @@
 #include <ngx_conf_file.h>
 #include <nginx.h>
 
+#include <string.h>
+
 #include "ngx_http_sqlite_module.h"
 
 sqlite3 *sqlite_db = NULL;
@@ -489,6 +491,69 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
     char *rest = slcf->sqlite_query->sql;
 
     r->headers_out.status = NGX_HTTP_OK;
+    // parse query string
+    char *buf = ngx_pcalloc(r->pool, r->args.len + 1);
+    char **keys;
+    char **values;
+    int pair_count = 1;
+    if (buf != NULL)
+    {
+        ngx_memcpy(buf, r->args.data, r->args.len);
+        // count for '&'
+        for (int i = 0; i < r->args.len; i++)
+        {
+            if (buf[i] == '&')
+            {
+                pair_count += 1;
+            }
+        }
+        keys = ngx_pcalloc(r->pool, sizeof(char *) * pair_count);
+        values = ngx_pcalloc(r->pool, sizeof(char *) * pair_count);
+        if (keys != NULL && values != NULL)
+        {
+            int crn_key = 0;
+            int crn_value = 0;
+            keys[crn_key] = &buf[0];
+            crn_key += 1;
+            for (int i = 0; i < r->args.len; i++)
+            {
+                if (buf[i] == '&')
+                {
+                    if (crn_value < crn_key)
+                    {
+                        values[crn_value] = &buf[i];
+                        crn_value += 1;
+                    }
+                    keys[crn_key] = &buf[i + 1];
+                    crn_key += 1;
+                    buf[i] = '\0';
+                }
+                else if (buf[i] == '=')
+                {
+                    if (crn_value < crn_key)
+                    {
+                        values[crn_value] = &buf[i + 1];
+                        crn_value += 1;
+                        buf[i] = '\0';
+                    }
+                    else
+                        ;
+                }
+                else
+                    ;
+            }
+            if (crn_value < crn_key)
+            {
+                values[crn_value] = &buf[r->args.len];
+            }
+        }
+        else
+        {
+            keys = NULL;
+            values = NULL;
+        }
+    }
+    // do the query
     while (rest != 0 && ngx_strlen(rest) > 0)
     {
         result_code = sqlite3_prepare_v2(
@@ -506,58 +571,29 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
         }
         else
         {
-            char *buf;
-            buf = ngx_pcalloc(r->pool, r->args.len + 1);
-            if (buf != NULL)
+            if (buf != NULL && keys != NULL && values != NULL)
             {
-                ngx_memcpy(buf, r->args.data, r->args.len);
-                char *query_qrgs = "args=";
-                int state = 0;
-                int para_index = 1;
-                char *str_start = 0;
-                for (i = 0; i < r->args.len; i++)
+                int para_count = sqlite3_bind_parameter_count(stmt);
+                for (int para_index = 0; para_index < para_count; para_index++)
                 {
-                    if (state < 5)
+                    char const *name = sqlite3_bind_parameter_name(stmt, para_index + 1);
+                    int key_count = pair_count;
+                    for (; key_count > -1; key_count--)
                     {
-                        if (buf[i] == query_qrgs[state])
+                        if (strcmp(&name[1], keys[key_count]) == 0)
                         {
-                            state += 1;
-                            if (state == 5)
-                            {
-                                str_start = &(buf[i + 1]);
-                            }
+                            break;
                         }
-                        else
-                        {
-                            state = 0;
-                        }
+                    }
+                    if (key_count > -1)
+                    {
+                        sqlite3_bind_text(stmt, para_index + 1, values[key_count], -1, SQLITE_STATIC);
                     }
                     else
                     {
-                        if (buf[i] == '&')
-                        {
-                            buf[i] = 0;
-                            sqlite3_bind_text(
-                                stmt,
-                                para_index,
-                                str_start,
-                                &buf[i] - str_start,
-                                SQLITE_TRANSIENT);
-                            state = 0;
-                            para_index += 1;
-                        }
+                        sqlite3_bind_null(stmt, para_index + 1);
                     }
                 }
-                if (state == 5)
-                {
-                    int ec = sqlite3_bind_text(
-                        stmt,
-                        para_index,
-                        str_start,
-                        &buf[r->args.len] - str_start,
-                        SQLITE_TRANSIENT);
-                }
-                ngx_pfree(r->pool, buf);
             }
             result_code = printer(r, stmt);
             sqlite3_finalize(stmt);
@@ -576,7 +612,7 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
             rest += 1;
         }
     }
-
+    ngx_pfree(r->pool, buf);
     ctx = ngx_http_get_module_ctx(r, ngx_http_sqlite_module);
     chain = ctx->rputs_chain;
 
@@ -635,6 +671,11 @@ normal_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
         ngx_http_sqlite_echo(r, "\n", 1);
         result_code = sqlite3_step(stmt);
     }
+    if (result_code != SQLITE_OK && result_code != SQLITE_DONE)
+    {
+        ngx_http_sqlite_echo(r, (char *)sqlite3_errmsg(sqlite_db), ngx_strlen(sqlite3_errmsg(sqlite_db)));
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "sqlite.err: %s", sqlite3_errmsg(sqlite_db));
+    }
     return result_code;
 }
 
@@ -673,6 +714,13 @@ json_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
         {
             ngx_http_sqlite_echo(r, ",", 1);
         }
+    }
+    if (result_code != SQLITE_OK && result_code != SQLITE_DONE)
+    {
+        ngx_http_sqlite_echo(r, "\"", 1);
+        ngx_http_sqlite_echo(r, (char *)sqlite3_errmsg(sqlite_db), ngx_strlen(sqlite3_errmsg(sqlite_db)));
+        ngx_http_sqlite_echo(r, "\"", 1);
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "sqlite.err: %s", sqlite3_errmsg(sqlite_db));
     }
     ngx_http_sqlite_echo(r, "]", 1);
     return result_code;
