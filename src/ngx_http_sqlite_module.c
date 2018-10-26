@@ -577,7 +577,7 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
                 for (int para_index = 0; para_index < para_count; para_index++)
                 {
                     char const *name = sqlite3_bind_parameter_name(stmt, para_index + 1);
-                    int key_count = pair_count;
+                    int key_count = pair_count - 1;
                     for (; key_count > -1; key_count--)
                     {
                         if (strcmp(&name[1], keys[key_count]) == 0)
@@ -664,7 +664,8 @@ normal_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
     {
         for (int i = 0; i < num_of_columns; i++)
         {
-            ngx_http_sqlite_echo(r, (char *)sqlite3_column_text(stmt, i), ngx_strlen(sqlite3_column_text(stmt, i)));
+            char *result = sqlite3_column_text(stmt, i);
+            ngx_http_sqlite_echo(r, result != NULL ? result : "null", result != NULL ? ngx_strlen(result) : 4);
             if (i < num_of_columns - 1)
             {
                 ngx_http_sqlite_echo(r, ",", 1);
@@ -698,16 +699,22 @@ json_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
     while (result_code == SQLITE_ROW)
     {
         ngx_http_sqlite_echo(r, "{", 1);
+        int need_comma = 0;
         for (int i = 0; i < num_of_columns; i++)
         {
-            ngx_http_sqlite_echo(r, "\"", 1);
-            ngx_http_sqlite_echo(r, (char *)sqlite3_column_name(stmt, i), ngx_strlen(sqlite3_column_name(stmt, i)));
-            ngx_http_sqlite_echo(r, "\":\"", 3);
-            ngx_http_sqlite_echo(r, (char *)sqlite3_column_text(stmt, i), ngx_strlen(sqlite3_column_text(stmt, i)));
-            ngx_http_sqlite_echo(r, "\"", 1);
-            if (i < num_of_columns - 1)
+            char *result = sqlite3_column_text(stmt, i);
+            if (result != NULL)
             {
-                ngx_http_sqlite_echo(r, ",", 1);
+                if (need_comma)
+                {
+                    ngx_http_sqlite_echo(r, ",", 1);
+                }
+                need_comma = 1;
+                ngx_http_sqlite_echo(r, "\"", 1);
+                ngx_http_sqlite_echo(r, (char *)sqlite3_column_name(stmt, i), ngx_strlen(sqlite3_column_name(stmt, i)));
+                ngx_http_sqlite_echo(r, "\":\"", 3);
+                ngx_http_sqlite_echo(r, result, ngx_strlen(result));
+                ngx_http_sqlite_echo(r, "\"", 1);
             }
         }
         ngx_http_sqlite_echo(r, "}", 1);
