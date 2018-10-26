@@ -577,7 +577,6 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
                 for (int para_index = 0; para_index < para_count; para_index++)
                 {
                     char const *name = sqlite3_bind_parameter_name(stmt, para_index + 1);
-                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, name);
                     int key_count = pair_count - 1;
                     for (; key_count > -1; key_count--)
                     {
