@@ -4,6 +4,9 @@
 mkdir build
 cd build
 mkdir nginx
+mkdir sqlite
+
+SQLITE_SRC_ROOT=`pwd`'/sqlite'
 
 echo "nginx download ..."
 wget http://nginx.org/download/nginx-${NGINX_SRC_VERSION}.tar.gz
@@ -14,8 +17,8 @@ NGINX_SRC=`pwd`'/nginx-'${NGINX_SRC_VERSION}
 NGINX_SRC_ROOT=`pwd`'/nginx'
 cd ${NGINX_SRC}
 
-export $SQLITE_INC=" "
-export $SQLITE_LIB=" "
+export $SQLITE_INC="$SQLITE_SRC_ROOT"
+export $SQLITE_LIB="SQLITE_SRC_ROOT"
 
 echo "nginx install ..."
 ./configure --prefix=${NGINX_SRC_ROOT} \
