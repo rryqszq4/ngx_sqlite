@@ -14,6 +14,8 @@ NGINX_SRC=`pwd`'/nginx-'${NGINX_SRC_VERSION}
 NGINX_SRC_ROOT=`pwd`'/nginx'
 cd ${NGINX_SRC}
 
+export $SQLITE_INC=" "
+export $SQLITE_LIB=" "
 
 echo "nginx install ..."
 ./configure --prefix=${NGINX_SRC_ROOT} \
