@@ -1,5 +1,7 @@
 ngx_sqlite
 ==========
+[![Build Status](https://travis-ci.org/rryqszq4/ngx_sqlite.svg?branch=master)](https://travis-ci.org/rryqszq4/ngx_sqlite)
+
 [ngx_sqlite](https://github.com/rryqszq4/ngx_sqlite) - Embedded sqlite for nginx-module.
 
 Requirement
