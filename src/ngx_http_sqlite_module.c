@@ -494,11 +494,12 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
     char **keys = NULL;
     char **values = NULL;
     int pair_count = 1;
+    unsigned i = 0;
     if (buf != NULL)
     {
         ngx_memcpy(buf, r->args.data, r->args.len);
         // count for '&'
-        for (unsigned i = 0; i < r->args.len; i++)
+        for (i = 0; i < r->args.len; i++)
         {
             if (buf[i] == '&')
             {
@@ -513,7 +514,7 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
             int crn_value = 0;
             keys[crn_key] = &buf[0];
             crn_key += 1;
-            for (unsigned i = 0; i < r->args.len; i++)
+            for (i = 0; i < r->args.len; i++)
             {
                 if (buf[i] == '&')
                 {
@@ -574,10 +575,12 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
             if (buf != NULL && keys != NULL && values != NULL)
             {
                 int para_count = sqlite3_bind_parameter_count(stmt);
-                for (int para_index = 0; para_index < para_count; para_index++)
+                int para_count = 0;
+                int key_count = 0;
+                for (para_index = 0; para_index < para_count; para_index++)
                 {
                     char const *name = sqlite3_bind_parameter_name(stmt, para_index + 1);
-                    int key_count = pair_count - 1;
+                    key_count = pair_count - 1;
                     for (; key_count > -1; key_count--)
                     {
                         if (strcmp(&name[1], keys[key_count]) == 0)
@@ -660,9 +663,10 @@ normal_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
     int num_of_columns = 0;
     result_code = sqlite3_step(stmt);
     num_of_columns = sqlite3_column_count(stmt);
+    int i = 0;
     while (result_code == SQLITE_ROW)
     {
-        for (int i = 0; i < num_of_columns; i++)
+        for (i = 0; i < num_of_columns; i++)
         {
             const unsigned char *result = sqlite3_column_text(stmt, i);
             const char *null_string = "null";
@@ -701,7 +705,8 @@ json_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
     {
         ngx_http_sqlite_echo(r, "{", 1);
         int need_comma = 0;
-        for (int i = 0; i < num_of_columns; i++)
+        int i = 0;
+        for (i = 0; i < num_of_columns; i++)
         {
             const unsigned char *result = sqlite3_column_text(stmt, i);
             if (result != NULL)
