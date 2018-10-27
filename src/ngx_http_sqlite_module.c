@@ -575,7 +575,7 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
             if (buf != NULL && keys != NULL && values != NULL)
             {
                 int para_count = sqlite3_bind_parameter_count(stmt);
-                int para_count = 0;
+                int para_index = 0;
                 int key_count = 0;
                 for (para_index = 0; para_index < para_count; para_index++)
                 {
