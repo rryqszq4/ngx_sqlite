@@ -41,7 +41,7 @@ ngx_int_t ngx_http_sqlite_content_query_handler(ngx_http_request_t *r);
 ngx_int_t ngx_http_sqlite_content_query_json_handler(ngx_http_request_t *r);
 int ngx_http_sqlite_sql_result(void *arg, int n_column, char **column_value, char **column_name);
 
-void ngx_http_sqlite_echo(ngx_http_request_t *r, char *data, size_t len);
+void ngx_http_sqlite_echo(ngx_http_request_t *r, const char *data, size_t len);
 
 static ngx_command_t ngx_http_sqlite_commands[] = {
 
@@ -201,8 +201,8 @@ ngx_http_sqlite_create_loc_conf(ngx_conf_t *cf)
 static char *
 ngx_http_sqlite_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
-    ngx_http_core_loc_conf_t *clcf;
-    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+    // ngx_http_core_loc_conf_t *clcf;
+    // clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
 
     ngx_http_sqlite_loc_conf_t *prev = parent;
     ngx_http_sqlite_loc_conf_t *conf = child;
@@ -228,7 +228,7 @@ ngx_http_sqlite_init_worker(ngx_cycle_t *cycle)
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(
                 sqlite_db,
-                current->pragma.data,
+                (char *)(current->pragma.data),
                 current->pragma.len,
                 &stmt,
                 NULL);
@@ -484,23 +484,22 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
 
     ngx_sqlite_request = r;
 
-    int i;
     sqlite3_stmt *stmt;
     int result_code = 0;
-    int num_of_columns = 0;
-    char *rest = slcf->sqlite_query->sql;
+    const char *rest = slcf->sqlite_query->sql;
 
     r->headers_out.status = NGX_HTTP_OK;
     // parse query string
     char *buf = ngx_pcalloc(r->pool, r->args.len + 1);
-    char **keys;
-    char **values;
+    char **keys = NULL;
+    char **values = NULL;
     int pair_count = 1;
+    unsigned i = 0;
     if (buf != NULL)
     {
         ngx_memcpy(buf, r->args.data, r->args.len);
         // count for '&'
-        for (int i = 0; i < r->args.len; i++)
+        for (i = 0; i < r->args.len; i++)
         {
             if (buf[i] == '&')
             {
@@ -515,7 +514,7 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
             int crn_value = 0;
             keys[crn_key] = &buf[0];
             crn_key += 1;
-            for (int i = 0; i < r->args.len; i++)
+            for (i = 0; i < r->args.len; i++)
             {
                 if (buf[i] == '&')
                 {
@@ -537,10 +536,12 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
                         buf[i] = '\0';
                     }
                     else
-                        ;
+                    {
+                    }
                 }
                 else
-                    ;
+                {
+                }
             }
             if (crn_value < crn_key)
             {
@@ -574,10 +575,12 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
             if (buf != NULL && keys != NULL && values != NULL)
             {
                 int para_count = sqlite3_bind_parameter_count(stmt);
-                for (int para_index = 0; para_index < para_count; para_index++)
+                int para_index = 0;
+                int key_count = 0;
+                for (para_index = 0; para_index < para_count; para_index++)
                 {
                     char const *name = sqlite3_bind_parameter_name(stmt, para_index + 1);
-                    int key_count = pair_count - 1;
+                    key_count = pair_count - 1;
                     for (; key_count > -1; key_count--)
                     {
                         if (strcmp(&name[1], keys[key_count]) == 0)
@@ -660,12 +663,14 @@ normal_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
     int num_of_columns = 0;
     result_code = sqlite3_step(stmt);
     num_of_columns = sqlite3_column_count(stmt);
+    int i = 0;
     while (result_code == SQLITE_ROW)
     {
-        for (int i = 0; i < num_of_columns; i++)
+        for (i = 0; i < num_of_columns; i++)
         {
-            char *result = sqlite3_column_text(stmt, i);
-            ngx_http_sqlite_echo(r, result != NULL ? result : "null", result != NULL ? ngx_strlen(result) : 4);
+            const unsigned char *result = sqlite3_column_text(stmt, i);
+            const char *null_string = "null";
+            ngx_http_sqlite_echo(r, result != NULL ? (char *)result : null_string, result != NULL ? ngx_strlen(result) : 4);
             if (i < num_of_columns - 1)
             {
                 ngx_http_sqlite_echo(r, ",", 1);
@@ -700,9 +705,10 @@ json_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
     {
         ngx_http_sqlite_echo(r, "{", 1);
         int need_comma = 0;
-        for (int i = 0; i < num_of_columns; i++)
+        int i = 0;
+        for (i = 0; i < num_of_columns; i++)
         {
-            char *result = sqlite3_column_text(stmt, i);
+            const unsigned char *result = sqlite3_column_text(stmt, i);
             if (result != NULL)
             {
                 if (need_comma)
@@ -713,7 +719,7 @@ json_printer(ngx_http_request_t *r, sqlite3_stmt *stmt)
                 ngx_http_sqlite_echo(r, "\"", 1);
                 ngx_http_sqlite_echo(r, (char *)sqlite3_column_name(stmt, i), ngx_strlen(sqlite3_column_name(stmt, i)));
                 ngx_http_sqlite_echo(r, "\":\"", 3);
-                ngx_http_sqlite_echo(r, result, ngx_strlen(result));
+                ngx_http_sqlite_echo(r, (char *)result, ngx_strlen(result));
                 ngx_http_sqlite_echo(r, "\"", 1);
             }
         }
@@ -741,7 +747,7 @@ ngx_http_sqlite_content_query_json_handler(ngx_http_request_t *r)
     return ngx_http_sqlite_content_query_core(r, json_printer);
 }
 
-void ngx_http_sqlite_echo(ngx_http_request_t *r, char *data, size_t len)
+void ngx_http_sqlite_echo(ngx_http_request_t *r, const char *data, size_t len)
 {
     ngx_buf_t *b;
     ngx_http_sqlite_rputs_chain_list_t *chain;
