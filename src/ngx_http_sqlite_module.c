@@ -600,6 +600,21 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
             }
             result_code = printer(r, stmt);
             sqlite3_finalize(stmt);
+            if (result_code != SQLITE_OK && result_code != SQLITE_DONE)
+            {
+                // on error break
+                sqlite3_stmt *stmt;
+                const char *rollback_string = "rollback;";
+                sqlite3_prepare_v2(
+                    sqlite_db,
+                    rollback_string,
+                    strlen(rollback_string),
+                    &stmt,
+                    NULL);
+                sqlite3_step(stmt);
+                sqlite3_finalize(stmt);
+                break;
+            }
         }
         if ((result_code == SQLITE_OK || result_code == SQLITE_DONE) && r->headers_out.status == NGX_HTTP_OK)
         {
