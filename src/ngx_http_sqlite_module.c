@@ -764,6 +764,10 @@ ngx_http_sqlite_content_query_json_handler(ngx_http_request_t *r)
 
 void ngx_http_sqlite_echo(ngx_http_request_t *r, const char *data, size_t len)
 {
+    if (len == 0)
+    {
+        return;
+    }
     ngx_buf_t *b;
     ngx_http_sqlite_rputs_chain_list_t *chain;
     ngx_http_sqlite_ctx_t *ctx;
