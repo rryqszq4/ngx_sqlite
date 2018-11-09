@@ -18,4 +18,7 @@ location = /sqlite_database {
 --- request
 GET /sqlite_database
 --- response_body
-no such table: test\x{0a}\x{0a}
+no such table: test
+
+
+
