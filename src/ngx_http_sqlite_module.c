@@ -624,7 +624,7 @@ ngx_http_sqlite_content_query_core(ngx_http_request_t *r, ngx_http_sqlite_result
         {
             r->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
-        ngx_http_sqlite_echo(r, "\n\n", 2);
+        ngx_http_sqlite_echo(r, "\n", 1);
         while (*rest == ' ' || *rest == '\n')
         {
             rest += 1;
