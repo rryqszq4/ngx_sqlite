@@ -17,6 +17,7 @@ location = /sqlite_database {
 }
 --- request
 GET /sqlite_database
+--- error_code: 500
 --- response_body
 no such table: test
 
