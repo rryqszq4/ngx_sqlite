@@ -5,11 +5,11 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/src/ngx_http_sqlite_module.c"
 NGX_ADDON_DEPS="$NGX_ADDON_DEPS $ngx_addon_dir/src/ngx_http_sqlite_module.h"
 
 if [ -z "$SQLITE_INC" ]; then
-	$SQLITE_INC="/usr/include"
+	SQLITE_INC="/usr/include"
 fi
 
 if [ -z "$SQLITE_LIB" ]; then
-	$SQLITE_LIB="/usr/lib64"
+	SQLITE_LIB="/usr/lib64"
 fi
 
 CORE_INCS="$CORE_INCS $SQLITE_INC"
